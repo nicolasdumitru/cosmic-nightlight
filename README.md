@@ -90,7 +90,7 @@ flatpak install flathub com.system76.Cosmic.BaseApp org.freedesktop.Sdk//25.08 \
 cd flatpak
 python3 -m venv venv
 ./venv/bin/pip install aiohttp toml tomlkit
-curl -sSLO https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/cargo/flatpak-cargo-generator.py
+curl --fail --show-error --silent --location -O https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/74697c75b630d7330e77250fc13cb5ea688d9479/cargo/flatpak-cargo-generator.py
 ./venv/bin/python flatpak-cargo-generator.py ../Cargo.lock -o cargo-sources.json
 
 flatpak-builder --force-clean --user --install build io.github.cosmic_nightlight.json
@@ -241,3 +241,9 @@ this app can drop the workaround and become a normal Wayland app.
 [cosmic-comp#2059]: https://github.com/pop-os/cosmic-comp/issues/2059
 [cosmic-epoch#2498]: https://github.com/pop-os/cosmic-epoch/issues/2498
 [jjo/drm-colortemp]: https://github.com/jjo/drm-colortemp
+
+## Security hardening branch
+
+See [security status and residual risks](docs/security.md) before installing this
+branch. It includes an [experimental NixOS module](nix/README.md). The dependency
+audit is not clean; helper tests passing must not be interpreted as a clean audit.
