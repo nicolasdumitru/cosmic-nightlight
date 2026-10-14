@@ -61,7 +61,7 @@ Set up the generator once:
 ```bash
 python3 -m venv venv
 ./venv/bin/pip install aiohttp toml tomlkit
-curl -sSLO https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/cargo/flatpak-cargo-generator.py
+curl --fail --show-error --silent --location -O https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/74697c75b630d7330e77250fc13cb5ea688d9479/cargo/flatpak-cargo-generator.py
 ```
 
 Regenerate before each build using the lockfile for the source being built:

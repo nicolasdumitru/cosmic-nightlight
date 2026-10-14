@@ -22,14 +22,14 @@ build_gui=0
 [[ "${1:-}" == "--gui" ]] && build_gui=1
 
 echo ">> Building nightlight-helper (release)..."
-cargo build --release -p nightlight-helper
+cargo build --release --locked -p nightlight-helper
 
 helper_bin="$repo_root/target/release/cosmic-nightlight-helper"
 [[ -x "$helper_bin" ]] || { echo "helper binary not found at $helper_bin" >&2; exit 1; }
 
 if [[ "$build_gui" -eq 1 ]]; then
     echo ">> Building cosmic-nightlight GUI (release)... (this pulls libcosmic and is slow)"
-    cargo build --release -p cosmic-nightlight
+    cargo build --release --locked -p cosmic-nightlight
 fi
 
 echo ">> Installing (requires sudo)..."

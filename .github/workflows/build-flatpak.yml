@@ -15,10 +15,10 @@ permissions:
 jobs:
   build-flatpak:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write   # required to attach the bundle to the Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       # An SDK, a BaseApp and a full libcosmic build do not comfortably fit
       # beside the preinstalled toolchains this job never touches.
@@ -92,7 +92,7 @@ jobs:
           # checkout has to produce it before flatpak-builder can do anything.
           python3 -m venv venv
           ./venv/bin/pip install --quiet aiohttp toml tomlkit
-          curl -sSLO https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/cargo/flatpak-cargo-generator.py
+          curl --fail --show-error --silent --location -O https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/74697c75b630d7330e77250fc13cb5ea688d9479/cargo/flatpak-cargo-generator.py
           ./venv/bin/python flatpak-cargo-generator.py ../Cargo.lock -o cargo-sources.json
 
           flatpak-builder --user --force-clean --install-deps-from=flathub \
@@ -107,16 +107,28 @@ jobs:
           ls -lh dist/
 
       - name: Upload the bundle as a build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cosmic-nightlight-flatpak
           path: dist/*.flatpak
           if-no-files-found: error
 
+  publish-flatpak:
+    needs: build-flatpak
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cosmic-nightlight-flatpak
+          path: dist
       - name: Attach the bundle to the Release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           # The .deb workflow is what creates the Release, and it finishes long
           # before this one, so the Release normally already exists. Wait rather

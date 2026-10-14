@@ -14,15 +14,15 @@ permissions:
 jobs:
   build-deb:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write   # required so tag builds can publish a Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       # libcosmic / iced need a newer Rust than the Ubuntu archive ships, so we
       # build with the rustup stable toolchain rather than apt's cargo/rustc.
       - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
 
       - name: Install build dependencies
         run: |
@@ -43,13 +43,27 @@ jobs:
           ls -l dist/
 
       - name: Upload .deb as build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cosmic-nightlight-deb
           path: dist/*.deb
           if-no-files-found: error
 
-      # Only on a pushed tag like v0.1.0: attach the .deb to a GitHub Release.
+  publish-deb:
+    needs: build-deb
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cosmic-nightlight-deb
+          path: dist
+
       - name: Build the release notes
         id: notes
         if: startsWith(github.ref, 'refs/tags/v')
@@ -83,7 +97,7 @@ jobs:
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: dist/*.deb
           # Match the titles of the earlier releases, e.g. "v0.4.0 — Night Light".
