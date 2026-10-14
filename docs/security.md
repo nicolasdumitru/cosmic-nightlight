@@ -48,29 +48,34 @@ to the exact immutable helper store path from the same source build.
 
 ## Dependency status
 
-The lockfile updates anyhow to 1.0.104, event-listener to 5.4.2, memmap2's 0.9
-instance to 0.9.11, and wayland-scanner to 0.31.11 (using quick-xml 0.41.0).
-They resolve RUSTSEC-2026-0190, RUSTSEC-2026-0221, the 0.9 instance of
-RUSTSEC-2026-0186, and the Wayland scanner's XML issues.
+The first published revision failed GitHub's audit: two quick-xml vulnerabilities,
+two unsoundness warnings (lru and memmap2), and four unmaintained-package warnings
+(paste, proc-macro-error2, rustybuzz and ttf-parser).
 
-The following matches remain. They have NOT been suppressed in CI:
+The follow-up replaces those dependencies rather than excluding advisories:
 
-| Dependency | Advisory | Reviewed use / remaining work |
-| --- | --- | --- |
-| quick-xml 0.39.4 | RUSTSEC-2026-0194, RUSTSEC-2026-0195 | zbus_xml 5.1.1 requires this series. The resolved path is through zbus-lockstep and its proc macros used by atspi-common. Upgrade that upstream chain; no claim of universal non-reachability is made. |
-| memmap2 0.8.0 | RUSTSEC-2026-0186 | xkbcommon 0.7.0 requires it. Its inspected mapping call uses MmapOptions/map_copy_read_only, not the advisory's affected advise/flush range APIs. Updating iced's xkbcommon dependency remains preferable. |
-| lru 0.16.4 | RUSTSEC-2026-0253 | cryoglyph pins the 0.16 series. Its glyph cache uses a Copy CacheKey (no panicking Drop), unlike the advisory's prerequisites. Upgrade the upstream dependency rather than relying indefinitely on this analysis. |
+- quick-xml 0.41.0, memmap2 0.9.11 and lru 0.18.5 replace the affected versions.
+- i18n-embed-fl 0.10.1 uses proc-macro-error3.
+- resvg/usvg 0.48.1 uses harfrust/skrifa instead of rustybuzz.
+- cosmic-text uses fontdb 0.24; Adwaita title text uses crossfont/FreeType instead
+  of ab_glyph/owned_ttf_parser. This removes the remaining ttf-parser consumers.
+- The macOS-only metal dependency uses pastey instead of paste.
 
-The Linux dependency graph DOES contain iced_wgpu/cryoglyph through libcosmic's
-Wayland feature, even though the application does not explicitly select the
-wgpu renderer. Renderer selection alone is not evidence that those crates are
-absent. Maintenance warnings for paste, proc-macro-error2, rustybuzz and ttf-parser
-also remain in the lockfile.
+Several upstream callers still constrain the old series. Their source snapshots
+and narrow patches are in [vendor/README.md](../vendor/README.md), with licenses
+and registry source checksums. The reviewed libcosmic revision remains unchanged.
+These snapshots create an ongoing maintenance obligation; prefer upstreaming the
+caller changes and removing them when compatible upstream releases are available.
 
-The security workflow runs `cargo audit --deny warnings`, without an ignore list.
-It is expected to fail while these findings remain. This is intentionally visible;
-a passing helper test suite does not mean the dependency audit is clean. Verify
-reachability again after changes to features, lockfile or upstream libraries.
+The local RustSec 0.33.0 report against database commit
+`6aed84668c23d7f535077a9fe918bf1fa0f6a5bc` now has zero vulnerabilities and zero
+informational warnings, with all notice/unmaintained/unsound categories enabled
+and no ignored advisories. This local library-based check does not check yanked
+packages. The unchanged `cargo audit --deny warnings` command in GitHub CI is the
+end-to-end audit gate; verify the run for the exact commit being installed.
+
+The Linux graph still includes iced_wgpu/cryoglyph through libcosmic's Wayland
+feature. Selecting the software renderer does not exclude their dependencies.
 
 ## Build supply chain
 
@@ -88,6 +93,7 @@ Run the checks below without root; none should access graphics hardware:
 cargo test --locked -p nightlight-core -p nightlight-helper
 node tests/polkit.mjs
 cargo test --locked -p cosmic-nightlight
+cargo test --locked -p cosmic-nightlight -p iced_tiny_skia security_migration_tests
 cargo audit --deny warnings
 ```
 
@@ -99,20 +105,18 @@ GPU routing. There has been no hardware validation on the target AMD/NVIDIA lapt
 
 ## Results in the review environment (2026-10-15)
 
-- Rust 1.99.0: `cargo check --locked -p cosmic-nightlight` passed.
+- Rust 1.99.0: workspace `cargo check` passed after the dependency migrations.
 - `cargo test --locked --workspace`: 81 tests passed (68 GUI/backend, 11 core,
   2 helper), with no display/VT operations run by the tests.
+- Two additional SVG regression tests passed: correct scaled BGRA pixels across
+  the renderer-version bridge, and rejection of invalid SVG/zero dimensions.
 - Actual shipped polkit rule: 144 allow/deny cases passed using Node's VM.
-- Shell syntax, workflow YAML parsing and `git diff --check` passed.
-- Lockfile versions were checked against RustSec commit
-  `6aed84668c23d7f535077a9fe918bf1fa0f6a5bc`, using Rust's semver crate to evaluate
-  patched/unaffected requirements. Four security/unsoundness advisory matches and
-  four unmaintained warnings remain, as described above. Yanked-package checks
-  were not performed.
-- cargo-audit 0.22.2 compiled here, but its application framework panicked because
-  this environment lacks `/proc/self/exe`; no successful cargo-audit run is claimed.
-  The unmodified command is configured in GitHub CI for a normal Linux runner.
-- Existing float-inference warnings in the GUI and a proc-macro-error2 future
-  compatibility warning remain. They are separate from this hardening work.
+- The RustSec library audit described above found zero advisories or warnings.
+  cargo-audit's application framework cannot run locally because this environment
+  lacks `/proc/self/exe`; the local check uses its rustsec library directly.
+- CI now includes a full GUI/workspace test job and the SVG regression tests, in
+  addition to helper/policy checks and the strict dependency audit.
+- Existing compiler warnings in upstream snapshots and GUI float inference are
+  separate from RustSec advisories. They are not suppressed by the audit.
 - Nix evaluation/build, live polkit authorization, actual terminal switching,
-  and release-binary/source equivalence were not validated here.
+  macOS compilation and release-binary/source equivalence were not validated here.

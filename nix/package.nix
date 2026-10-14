@@ -6,6 +6,7 @@
   libcosmicAppHook,
   pkg-config,
   fontconfig,
+  freetype,
   libdrm,
 }:
 let
@@ -35,7 +36,7 @@ rustPlatform.buildRustPackage {
   pname = "cosmic-nightlight";
   inherit src version cargoLock;
   nativeBuildInputs = [ libcosmicAppHook pkg-config ];
-  buildInputs = [ fontconfig libdrm ];
+  buildInputs = [ fontconfig freetype libdrm ];
   cargoBuildFlags = [ "-p" "cosmic-nightlight" ];
   cargoTestFlags = [ "-p" "cosmic-nightlight" ];
   COSMIC_NIGHTLIGHT_PACKAGED_HELPER = "${helper}/bin/cosmic-nightlight-helper";

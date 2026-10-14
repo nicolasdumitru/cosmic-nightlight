@@ -1,0 +1,90 @@
+# Vendored caller manifest; see ../README.md for source and changes.
+
+["package"]
+"name" = "iced_tiny_skia"
+"description" = "A software renderer for iced on top of tiny-skia"
+"version" = "0.14.0"
+"edition" = "2024"
+"authors" = ["H\u00e9ctor Ram\u00f3n Jim\u00e9nez <hector@hecrj.dev>"]
+"license" = "MIT"
+"repository" = "https://github.com/iced-rs/iced"
+"homepage" = "https://iced.rs"
+"categories" = ["gui"]
+"keywords" = ["gui", "ui", "graphics", "interface", "widgets"]
+
+["features"]
+"default" = ["x11", "wayland"]
+"image" = ["iced_graphics/image"]
+"svg" = ["iced_graphics/svg", "resvg"]
+"geometry" = ["iced_graphics/geometry"]
+"x11" = ["softbuffer/x11", "softbuffer/x11-dlopen"]
+"wayland" = ["softbuffer/wayland", "softbuffer/wayland-dlopen"]
+
+["dependencies"]
+
+["dependencies"."iced_debug"]
+"version" = "0.14.0"
+"git" = "https://github.com/pop-os/libcosmic.git"
+
+["dependencies"."iced_graphics"]
+"version" = "0.14.0"
+"git" = "https://github.com/pop-os/libcosmic.git"
+
+["dependencies"."bytemuck"]
+"version" = "1.0"
+"features" = ["derive"]
+
+["dependencies"."cosmic-text"]
+"version" = "0.19"
+
+["dependencies"."kurbo"]
+"version" = "0.10"
+
+["dependencies"."log"]
+"version" = "0.4"
+
+["dependencies"."rustc-hash"]
+"version" = "2.0"
+
+["dependencies"."softbuffer"]
+"git" = "https://github.com/pop-os/softbuffer"
+"tag" = "cosmic-4.0"
+
+["dependencies"."tiny-skia"]
+"version" = "0.11"
+"default-features" = false
+"features" = ["std", "simd"]
+
+["dependencies"."resvg"]
+"version" = "0.48.1"
+"optional" = true
+
+["lints"]
+
+["lints"."rust"]
+"unused_results" = "deny"
+
+["lints"."rust"."rust_2018_idioms"]
+"level" = "deny"
+"priority" = -1
+
+["lints"."clippy"]
+"type-complexity" = "allow"
+"map-entry" = "allow"
+"large-enum-variant" = "allow"
+"result_large_err" = "allow"
+"semicolon_if_nothing_returned" = "deny"
+"trivially-copy-pass-by-ref" = "deny"
+"default_trait_access" = "deny"
+"match-wildcard-for-single-variants" = "deny"
+"redundant-closure-for-method-calls" = "deny"
+"filter_map_next" = "deny"
+"manual_let_else" = "deny"
+"unused_async" = "deny"
+"from_over_into" = "deny"
+"needless_borrow" = "deny"
+"new_without_default" = "deny"
+"useless_conversion" = "deny"
+
+["lints"."rustdoc"]
+"broken_intra_doc_links" = "forbid"

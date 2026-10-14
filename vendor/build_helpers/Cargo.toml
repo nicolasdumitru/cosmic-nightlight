@@ -1,0 +1,48 @@
+# Vendored caller manifest; see ../README.md for source and changes.
+
+["package"]
+"name" = "build_helpers"
+"version" = "0.14.0"
+"authors" = ["H\u00e9ctor Ram\u00f3n Jim\u00e9nez <hector@hecrj.dev>"]
+"edition" = "2024"
+"license" = "MIT"
+"repository" = "https://github.com/iced-rs/iced"
+"homepage" = "https://iced.rs"
+"categories" = ["gui"]
+"keywords" = ["gui", "ui", "graphics", "interface", "widgets"]
+"rust-version" = "1.92"
+
+["dependencies"]
+
+["dependencies"."cfg_aliases"]
+"version" = "0.2.1"
+
+["lints"]
+
+["lints"."rust"]
+"unused_results" = "deny"
+
+["lints"."rust"."rust_2018_idioms"]
+"level" = "deny"
+"priority" = -1
+
+["lints"."clippy"]
+"type-complexity" = "allow"
+"map-entry" = "allow"
+"large-enum-variant" = "allow"
+"result_large_err" = "allow"
+"semicolon_if_nothing_returned" = "deny"
+"trivially-copy-pass-by-ref" = "deny"
+"default_trait_access" = "deny"
+"match-wildcard-for-single-variants" = "deny"
+"redundant-closure-for-method-calls" = "deny"
+"filter_map_next" = "deny"
+"manual_let_else" = "deny"
+"unused_async" = "deny"
+"from_over_into" = "deny"
+"needless_borrow" = "deny"
+"new_without_default" = "deny"
+"useless_conversion" = "deny"
+
+["lints"."rustdoc"]
+"broken_intra_doc_links" = "forbid"

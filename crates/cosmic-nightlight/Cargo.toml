@@ -24,7 +24,7 @@ libc.workspace = true
 i18n-embed = { version = "0.16", features = ["fluent-system", "desktop-requester"] }
 # The `fl!` proc macro, which resolves message ids against `i18n.toml`'s
 # fallback catalog at compile time.
-i18n-embed-fl = "0.10"
+i18n-embed-fl = "0.10.1"
 # `debug-embed` makes debug builds carry the catalogs the way release builds do.
 # Without it rust-embed reads them off disk relative to the crate directory, so
 # a debug binary run from anywhere else comes up with no translations — a
@@ -33,7 +33,8 @@ rust-embed = { version = "8", features = ["debug-embed"] }
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
-# Unpinned, so `Cargo.lock` is what decides. Frosted glass needs a libcosmic that
+# Cargo.lock pins the reviewed toolkit revision; caller patches live in vendor/.
+# Frosted glass needs a libcosmic that
 # knows about the theme's `frosted_*` flags and drives `ext-background-effect-v1`
 # off them — anything from before that (roughly mid-June 2026) leaves every
 # surface flatly opaque while the rest of the desktop blurs, with nothing in this
@@ -44,5 +45,6 @@ git = "https://github.com/pop-os/libcosmic.git"
 # the GPU renderer re-inits per layer-shell surface, which made the panel icon
 # take 30–60s to appear and the popup ~5s to open (and falls back to slow
 # software Vulkan when the applet can't reach the GPU). tiny-skia is always
-# compiled in by libcosmic, so this just drops the GPU stack from the binary.
+# compiled in by libcosmic. Wayland still brings iced_wgpu into the dependency
+# graph; renderer selection is not evidence that its dependencies are absent.
 features = ["applet"]

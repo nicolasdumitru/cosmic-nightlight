@@ -1,0 +1,26 @@
+[
+  {
+    "name": "cosmic-text",
+    "version": "0.19.0",
+    "source": "registry+https://github.com/rust-lang/crates.io-index",
+    "checksum": "be17b688510d934ce13f48a2beba700e11583e281e0fda99c22bb256a14eda73"
+  },
+  {
+    "name": "metal",
+    "version": "0.33.0",
+    "source": "registry+https://github.com/rust-lang/crates.io-index",
+    "checksum": "c7047791b5bc903b8cd963014b355f71dc9864a9a0b727057676c1dcae5cbc15"
+  },
+  {
+    "name": "xkbcommon",
+    "version": "0.7.0",
+    "source": "registry+https://github.com/rust-lang/crates.io-index",
+    "checksum": "13867d259930edc7091a6c41b4ce6eee464328c6ff9659b7e4c668ca20d4c91e"
+  },
+  {
+    "name": "zbus_xml",
+    "version": "5.1.1",
+    "source": "registry+https://github.com/rust-lang/crates.io-index",
+    "checksum": "a8067892e940ed1727dea64690378601603b31d62dfde019a5335fbb7c0e0ed9"
+  }
+]

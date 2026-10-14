@@ -1,0 +1,89 @@
+# Vendored caller manifest; see ../README.md for source and changes.
+
+["package"]
+"edition" = "2021"
+"rust-version" = "1.82"
+"name" = "metal"
+"version" = "0.33.0"
+"authors" = ["gfx-rs developers"]
+"build" = false
+"exclude" = ["guide/**/*", "examples/texture/**/*", "tests/**/*", "Cargo.lock", "target/**/*"]
+"autolib" = false
+"autobins" = false
+"autoexamples" = false
+"autotests" = false
+"autobenches" = false
+"description" = "Rust bindings for Metal"
+"homepage" = "https://github.com/gfx-rs/metal-rs"
+"documentation" = "https://docs.rs/crate/metal"
+"readme" = "README.md"
+"keywords" = ["metal", "graphics", "bindings"]
+"license" = "MIT OR Apache-2.0"
+"repository" = "https://github.com/gfx-rs/metal-rs"
+
+["package"."metadata"]
+
+["package"."metadata"."docs"]
+
+["package"."metadata"."docs"."rs"]
+"targets" = ["aarch64-apple-darwin", "aarch64-apple-ios", "aarch64-apple-ios-sim", "x86_64-apple-darwin", "x86_64-apple-ios"]
+
+["features"]
+"cargo-clippy" = []
+"default" = ["link"]
+"link" = ["core-graphics-types/link"]
+"mps" = []
+"private" = []
+
+["lib"]
+"name" = "metal"
+"path" = "src/lib.rs"
+
+["dependencies"]
+
+["dependencies"."bitflags"]
+"version" = "2"
+
+["dependencies"."block"]
+"version" = "0.1.6"
+
+["dependencies"."core-graphics-types"]
+"version" = "0.2.0"
+"default-features" = false
+
+["dependencies"."dispatch"]
+"version" = "0.2"
+"optional" = true
+
+["dependencies"."foreign-types"]
+"version" = "0.5"
+
+["dependencies"."log"]
+"version" = "0.4"
+
+["dependencies"."objc"]
+"version" = "0.2.4"
+
+["dependencies"."paste"]
+"package" = "pastey"
+"version" = "0.2"
+
+["dev-dependencies"]
+
+["dev-dependencies"."cocoa"]
+"version" = "0.26.0"
+
+["dev-dependencies"."glam"]
+"version" = "0.30"
+
+["dev-dependencies"."png"]
+"version" = "0.18"
+
+["dev-dependencies"."rand"]
+"version" = "0.9"
+
+["dev-dependencies"."sema"]
+"version" = "0.1.4"
+
+["dev-dependencies"."winit"]
+"version" = "0.29"
