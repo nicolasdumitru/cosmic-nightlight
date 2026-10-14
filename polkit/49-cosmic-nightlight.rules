@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MPL-2.0
 //
-// Allows members of the "wheel" or "sudo" group to run the
+// Allows active, local members of the "wheel" or "sudo" group to run the
 // cosmic-nightlight privileged helper via pkexec without re-entering
 // their password each time the tint changes.
 //
@@ -20,6 +20,8 @@ polkit.addRule(function (action, subject) {
     if (
         action.id == "org.freedesktop.policykit.exec" &&
         is_helper &&
+        subject.local &&
+        subject.active &&
         (subject.isInGroup("wheel") || subject.isInGroup("sudo"))
     ) {
         return polkit.Result.YES;

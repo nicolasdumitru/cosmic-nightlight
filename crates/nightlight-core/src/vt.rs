@@ -12,13 +12,13 @@
 use std::fs::OpenOptions;
 use std::io;
 use std::os::fd::{AsRawFd, RawFd};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 // VT ioctls from <linux/vt.h>.
 const VT_OPENQRY: libc::c_ulong = 0x5600;
 const VT_GETSTATE: libc::c_ulong = 0x5603;
 const VT_ACTIVATE: libc::c_ulong = 0x5606;
-const VT_WAITACTIVE: libc::c_ulong = 0x5607;
+const SWITCH_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[repr(C)]
 struct VtStat {
@@ -52,20 +52,41 @@ fn query_free_vt(fd: RawFd) -> io::Result<libc::c_int> {
     if rc < 0 {
         return Err(errno());
     }
+    if !(1..=63).contains(&vt) {
+        return Err(io::Error::other("no usable spare virtual terminal"));
+    }
     Ok(vt)
 }
 
 fn activate(fd: RawFd, vt: libc::c_int) -> io::Result<()> {
-    // SAFETY: `fd` is a live console fd; both ioctls take an int by value.
+    // SAFETY: `fd` is a live console fd; VT_ACTIVATE takes an int by value.
     let rc = unsafe { libc::ioctl(fd, VT_ACTIVATE, vt) };
     if rc < 0 {
         return Err(errno());
     }
-    let rc = unsafe { libc::ioctl(fd, VT_WAITACTIVE, vt) };
-    if rc < 0 {
-        return Err(errno());
+    // VT_WAITACTIVE can block indefinitely. Poll the foreground VT instead,
+    // allowing the restore guard to run when the switch cannot complete.
+    wait_for_vt(vt, SWITCH_TIMEOUT, || current_vt(fd))
+}
+
+fn wait_for_vt(
+    vt: libc::c_int,
+    timeout: Duration,
+    mut current: impl FnMut() -> io::Result<libc::c_int>,
+) -> io::Result<()> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if current()? == vt {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "virtual terminal switch timed out",
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(20));
     }
-    Ok(())
 }
 
 /// Restores the original VT when dropped, so we return the user to their
@@ -73,11 +94,17 @@ fn activate(fd: RawFd, vt: libc::c_int) -> io::Result<()> {
 struct VtRestore {
     fd: RawFd,
     original: libc::c_int,
+    armed: bool,
 }
 
 impl Drop for VtRestore {
     fn drop(&mut self) {
-        let _ = activate(self.fd, self.original);
+        if !self.armed {
+            return;
+        }
+        if let Err(err) = activate(self.fd, self.original) {
+            eprintln!("nightlight: failed to restore VT {}: {err}", self.original);
+        }
     }
 }
 
@@ -120,18 +147,49 @@ pub fn with_master_window<T>(
     };
     let spare = query_free_vt(fd)?;
 
-    // Arm the restore *before* leaving, not after arriving. `activate` is two
-    // ioctls, and a failure of the second (VT_WAITACTIVE, which a signal can
-    // interrupt) leaves the switch already under way — so a guard armed only on
+    // Arm the restore *before* leaving, not after arriving. `activate` has two
+    // stages; a failure while waiting leaves the switch already under way.
+    // A guard armed only on
     // success would return the error from a spare TTY the user is now sitting on,
     // with nothing left to bring them back. Restoring to the VT we never left is
     // harmless, which makes arming early strictly the safer order.
-    let _restore = VtRestore { fd, original };
+    let mut restore = VtRestore {
+        fd,
+        original,
+        armed: true,
+    };
     activate(fd, spare)?;
 
     // Give logind a moment to revoke the compositor's DRM master after the
     // switch completes before we try to grab it.
     std::thread::sleep(Duration::from_millis(150));
 
-    Ok(f())
+    let result = f();
+    // Surface restoration failures to the caller; Drop makes one final attempt
+    // on error. Do not report a successful apply while stranded on a spare VT.
+    activate(fd, original)?;
+    restore.armed = false;
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn switch_wait_is_bounded_and_reports_query_failures() {
+        assert!(wait_for_vt(2, Duration::ZERO, || Ok(2)).is_ok());
+        assert_eq!(
+            wait_for_vt(2, Duration::ZERO, || Ok(1)).unwrap_err().kind(),
+            io::ErrorKind::TimedOut,
+        );
+        assert_eq!(
+            wait_for_vt(2, SWITCH_TIMEOUT, || Err(
+                io::ErrorKind::PermissionDenied.into()
+            ))
+            .unwrap_err()
+            .kind(),
+            io::ErrorKind::PermissionDenied,
+        );
+    }
 }

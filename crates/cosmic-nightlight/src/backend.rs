@@ -258,10 +258,21 @@ enum HostHelper {
 /// Costs one `flatpak-spawn` per candidate — see [`host_helper_path`] for when
 /// that is paid.
 fn probe_host_helper() -> HostHelper {
+    let mut outdated = None;
     for candidate in HELPER_CANDIDATES {
         if host_has_executable(candidate) {
-            return HostHelper::Whitelisted((*candidate).to_string());
+            if host_helper_contract(candidate)
+                .is_some_and(|contract| contract >= nightlight_core::HELPER_CONTRACT)
+            {
+                return HostHelper::Whitelisted((*candidate).to_string());
+            }
+            outdated.get_or_insert_with(|| (*candidate).to_string());
         }
+    }
+    // Prefer a refreshed /usr/local helper over an older distro copy in /usr.
+    // If none is current, retain the old path so host_setup offers an upgrade.
+    if let Some(path) = outdated {
+        return HostHelper::Whitelisted(path);
     }
     if let Some(bundled) = bundled_helper_path() {
         if host_has_executable(&bundled) {
@@ -572,7 +583,13 @@ fn host_helper_contract(path: &str) -> Option<u32> {
     if !output.status.success() {
         return None;
     }
-    nightlight_core::parse_contract(&String::from_utf8_lossy(&output.stdout))
+    let version = String::from_utf8_lossy(&output.stdout);
+    if nightlight_core::parse_security_revision(&version).unwrap_or(0)
+        < nightlight_core::HELPER_SECURITY_REVISION
+    {
+        return None;
+    }
+    nightlight_core::parse_contract(&version)
 }
 
 /// What the settings row says when the setup never got as far as asking, because
@@ -653,6 +670,9 @@ pub fn run_host_setup() -> Result<(), String> {
 /// The `COSMIC_NIGHTLIGHT_HELPER` override is handled a level up, in
 /// [`privileged_program`], so that it wins over the setup routing too.
 fn helper_path() -> String {
+    if let Some(path) = option_env!("COSMIC_NIGHTLIGHT_PACKAGED_HELPER") {
+        return path.to_owned();
+    }
     if in_flatpak() {
         return host_helper_path();
     }

@@ -19,6 +19,7 @@ use std::io;
 
 pub mod drm;
 pub mod gamma;
+mod lock;
 pub mod vt;
 
 pub use gamma::{MAX_KELVIN, MIN_KELVIN, NEUTRAL_KELVIN};
@@ -40,6 +41,20 @@ pub struct Applied {
 /// `session_vt` is the caller's graphical-session VT (`XDG_VTNR`); see
 /// [`vt::with_master_window`] for how it guards and restores the VT bounce.
 pub fn apply(kelvin: u32, brightness: f64, session_vt: Option<i32>) -> io::Result<Applied> {
+    if !(0.0..=1.0).contains(&brightness) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "brightness must be finite and between 0 and 1",
+        ));
+    }
+    if session_vt.is_some_and(|vt| !(1..=63).contains(&vt)) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "session VT must be between 1 and 63",
+        ));
+    }
+    // Held until after the original VT has been restored, including on errors.
+    let _lock = lock::acquire()?;
     let kelvin = kelvin.clamp(MIN_KELVIN, MAX_KELVIN);
     let crtcs = vt::with_master_window(session_vt, || drm::apply_all(kelvin, brightness))??;
     Ok(Applied { crtcs })
@@ -59,8 +74,8 @@ pub fn is_root() -> bool {
 
 /// Version of the helper's command line — deliberately *not* the app version.
 ///
-/// The flatpak copies a helper onto the host once and never refreshes it when
-/// the app updates, so a GUI from a later release has to know whether the host's
+/// The flatpak copies a helper onto the host separately from app updates, so a
+/// GUI from a later release has to know whether the host's
 /// helper still understands what it sends. Keying that on the app version would
 /// re-prompt for a password on every release; keying it on the arguments
 /// themselves means the question is only asked when the answer can be "no".
@@ -68,7 +83,8 @@ pub fn is_root() -> bool {
 /// Bump this **only** for a change that would make an older helper mishandle
 /// what the GUI sends — an argument removed or renamed, a unit or range
 /// redefined, a new argument the GUI relies on. Adding an argument the GUI does
-/// not require is not a bump.
+/// not require is not a bump. Security fixes instead bump
+/// [`HELPER_SECURITY_REVISION`] so old helpers are refreshed even when compatible.
 ///
 /// Contract 1, unchanged across every release so far:
 ///
@@ -77,13 +93,17 @@ pub fn is_root() -> bool {
 /// ```
 pub const HELPER_CONTRACT: u32 = 1;
 
+/// Bump for security fixes that must refresh separately installed host helpers.
+/// This is independent of CLI compatibility. See docs/security.md.
+pub const HELPER_SECURITY_REVISION: u32 = 1;
+
 /// The line `cosmic-nightlight-helper --version` prints.
 ///
 /// Written here and read back by [`parse_contract`] so the format cannot drift
 /// between the helper and the GUI interrogating it.
 pub fn version_line() -> String {
     format!(
-        "cosmic-nightlight-helper {} (contract {HELPER_CONTRACT})",
+        "cosmic-nightlight-helper {} (contract {HELPER_CONTRACT}) (security {HELPER_SECURITY_REVISION})",
         env!("CARGO_PKG_VERSION")
     )
 }
@@ -118,7 +138,37 @@ mod tests {
     }
 
     #[test]
+    fn security_revision_is_independent_of_cli_compatibility() {
+        assert_eq!(
+            parse_security_revision(&version_line()),
+            Some(HELPER_SECURITY_REVISION)
+        );
+        assert_eq!(parse_security_revision("helper (contract 1)"), None);
+        assert_eq!(parse_security_revision("helper (security x)"), None);
+        assert_eq!(parse_security_revision("helper (security 1garbage)"), None);
+    }
+
+    #[test]
+    fn invalid_inputs_fail_before_opening_privileged_devices() {
+        assert_eq!(
+            apply(3500, f64::NAN, Some(2)).unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            apply(3500, 1.0, Some(0)).unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+    }
+
+    #[test]
     fn trailing_text_does_not_confuse_the_parse() {
         assert_eq!(parse_contract("x (contract 12) and more"), Some(12));
     }
+}
+
+/// Old helpers have no security marker and must be refreshed once.
+pub fn parse_security_revision(output: &str) -> Option<u32> {
+    let rest = output.split_once("(security ")?.1;
+    let digits = rest.split_once(')')?.0;
+    digits.parse().ok()
 }

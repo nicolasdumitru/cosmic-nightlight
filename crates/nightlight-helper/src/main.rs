@@ -13,8 +13,10 @@
 //!   cosmic-nightlight-helper --version      (app version + CLI contract number)
 //!
 //! Those arguments are a frozen contract, because the flatpak build installs a
-//! copy of this binary on the host that is *not* refreshed when the app updates.
-//! `--version` is how a newer GUI checks the older host copy still understands
+//! copy of this binary on the host separately from ordinary app updates.
+//! `--version` also reports a minimum security revision so security fixes trigger
+//! authenticated host setup independently of CLI changes. A newer GUI checks
+//! that the older host copy still understands
 //! it; see `nightlight_core::HELPER_CONTRACT` before changing any of them.
 //!
 //! `--session-vt` is the caller's graphical-session VT (from `XDG_VTNR`, which
@@ -30,13 +32,13 @@ struct Args {
     session_vt: Option<i32>,
 }
 
-fn parse_args() -> Result<Args, String> {
+fn parse_args(args: impl Iterator<Item = String>) -> Result<Args, String> {
     let mut kelvin: Option<u32> = None;
     let mut brightness: f64 = 1.0;
     let mut session_vt: Option<i32> = None;
     let mut off = false;
 
-    let mut args = std::env::args().skip(1);
+    let mut args = args;
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--off" => off = true,
@@ -71,6 +73,10 @@ fn parse_args() -> Result<Args, String> {
         ));
     }
 
+    if session_vt.is_some_and(|vt| !(1..=63).contains(&vt)) {
+        return Err("session VT must be between 1 and 63".to_owned());
+    }
+
     Ok(Args {
         kelvin,
         brightness,
@@ -97,7 +103,7 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let args = match parse_args() {
+    let args = match parse_args(std::env::args().skip(1)) {
         Ok(args) => args,
         Err(msg) => {
             if msg != "help" {
@@ -138,6 +144,46 @@ fn main() -> ExitCode {
         Err(err) => {
             eprintln!("cosmic-nightlight-helper: failed to apply gamma: {err}");
             ExitCode::FAILURE
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn accepts(args: &[&str]) -> bool {
+        parse_args(args.iter().map(|arg| (*arg).to_owned())).is_ok()
+    }
+
+    #[test]
+    fn rejects_nonfinite_brightness_and_invalid_vts() {
+        for value in ["NaN", "inf", "-inf", "-0.1", "1.1"] {
+            assert!(!accepts(&["--temp", "3500", "--brightness", value]));
+        }
+        for value in ["0", "-1", "64", "2147483647", "x"] {
+            assert!(!accepts(&["--off", "--session-vt", value]));
+        }
+        assert!(accepts(&[
+            "--temp",
+            "3500",
+            "--brightness",
+            "0.8",
+            "--session-vt",
+            "2"
+        ]));
+        assert!(accepts(&["--off"]));
+    }
+
+    #[test]
+    fn rejects_unknown_and_incomplete_arguments() {
+        for args in [
+            vec![],
+            vec!["--temp"],
+            vec!["--off", "--session-vt"],
+            vec!["--off", ";sh"],
+        ] {
+            assert!(!accepts(&args));
         }
     }
 }
