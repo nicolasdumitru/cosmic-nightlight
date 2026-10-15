@@ -1,0 +1,46 @@
+name: Security checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '19 6 * * 1'
+permissions:
+  contents: read
+jobs:
+  helper-and-policy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - run: cargo test --locked -p nightlight-core -p nightlight-helper
+      - run: node tests/polkit.mjs
+      - run: for script in scripts/*.sh; do bash -n "$script"; done
+  gui-and-rendering:
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_PROFILE_TEST_DEBUG: 0
+      CARGO_INCREMENTAL: 0
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - name: Install GUI build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libfontconfig1-dev libfreetype6-dev libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libdrm-dev libegl1-mesa-dev libxrender-dev libxext-dev fonts-dejavu-core
+      - run: cargo test --locked --workspace
+  dependency-audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - run: cargo install cargo-audit --version 0.22.2 --locked
+      # No silent exclusions: unresolved advisories remain visible as failures.
+      - run: cargo audit --deny warnings

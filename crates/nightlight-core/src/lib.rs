@@ -19,6 +19,7 @@ use std::io;
 
 pub mod drm;
 pub mod gamma;
+mod lock;
 pub mod vt;
 
 pub use gamma::{MAX_KELVIN, MIN_KELVIN, NEUTRAL_KELVIN};
@@ -40,6 +41,13 @@ pub struct Applied {
 /// `session_vt` is the caller's graphical-session VT (`XDG_VTNR`); see
 /// [`vt::with_master_window`] for how it guards and restores the VT bounce.
 pub fn apply(kelvin: u32, brightness: f64, session_vt: Option<i32>) -> io::Result<Applied> {
+    if !(0.0..=1.0).contains(&brightness) || session_vt.is_some_and(|vt| !(1..=63).contains(&vt)) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid brightness or session VT",
+        ));
+    }
+    let _lock = lock::acquire()?;
     let kelvin = kelvin.clamp(MIN_KELVIN, MAX_KELVIN);
     let crtcs = vt::with_master_window(session_vt, || drm::apply_all(kelvin, brightness))??;
     Ok(Applied { crtcs })
@@ -115,6 +123,18 @@ mod tests {
         assert_eq!(parse_contract(""), None);
         assert_eq!(parse_contract("cosmic-nightlight-helper 0.4.0"), None);
         assert_eq!(parse_contract("(contract )"), None);
+    }
+
+    #[test]
+    fn invalid_inputs_fail_before_opening_privileged_devices() {
+        assert_eq!(
+            apply(3500, f64::NAN, Some(2)).unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            apply(3500, 1.0, Some(0)).unwrap_err().kind(),
+            io::ErrorKind::InvalidInput
+        );
     }
 
     #[test]

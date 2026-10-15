@@ -20,6 +20,7 @@ polkit.addRule(function (action, subject) {
     if (
         action.id == "org.freedesktop.policykit.exec" &&
         is_helper &&
+        subject.local && subject.active &&
         (subject.isInGroup("wheel") || subject.isInGroup("sudo"))
     ) {
         return polkit.Result.YES;
